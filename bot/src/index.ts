@@ -137,67 +137,116 @@ const app = express();
 const upload = multer({ dest: 'uploads/' });
 
 app.post('/upload', upload.single('image'), async (req, res) => {
-  const { random } = req.body;
-  const file = req.file;
+  try {
+    console.log('Upload request received:', { random: req.body.random, file: req.file?.originalname });
 
-  if (!random || !file) return res.status(400).send('Missing data');
+    const { random } = req.body;
+    const file = req.file;
 
-  const row = await new Promise<any>((resolve, reject) => {
-    db.get('SELECT * FROM verifications WHERE random = ?', [random], (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
-
-  if (!row || row.status !== 'pending') return res.status(400).send('Invalid');
-
-  const hashedUsername = row.hashed_username;
-  const userId = row.user_id;
-
-  // Check hashed matches
-  const guild = client.guilds.cache.get(row.guild_id);
-  if (!guild) return res.status(500).send('Guild not found');
-
-  const member = await guild.members.fetch(userId);
-  if (!member) return res.status(400).send('User not found');
-
-  const currentHashed = crypto.createHash('sha256').update(member.user.username).digest('hex');
-  if (currentHashed !== hashedUsername) return res.status(400).send('Username changed');
-
-  // Send embed to verify channel
-  const setting = await new Promise<any>((resolve, reject) => {
-    db.get('SELECT verify_channel FROM settings WHERE guild_id = ?', [guild.id], (err, setting) => {
-      if (err) reject(err);
-      else resolve(setting);
-    });
-  });
-
-  if (setting?.verify_channel) {
-    const channel = guild.channels.cache.get(setting.verify_channel);
-    if (channel && channel.isTextBased()) {
-      const embed = new EmbedBuilder()
-        .setTitle('Verification Request')
-        .setDescription(`User: ${member}`)
-        .setImage(`attachment://${file.filename}`)
-        .setColor(0x00ff00);
-
-      const buttons = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(
-          new ButtonBuilder()
-            .setCustomId(`approve_${random}`)
-            .setLabel('Verify')
-            .setStyle(ButtonStyle.Success),
-          new ButtonBuilder()
-            .setCustomId(`decline_${random}`)
-            .setLabel('Decline')
-            .setStyle(ButtonStyle.Danger)
-        );
-
-      await channel.send({ embeds: [embed], components: [buttons], files: [{ attachment: file.path, name: file.filename }] });
+    if (!random || !file) {
+      console.error('Missing data:', { random, file });
+      return res.status(400).send('Missing data');
     }
-  }
 
-  res.send('Success! You may return to Discord.');
+    console.log('Querying database for verification:', random);
+    const row = await new Promise<any>((resolve, reject) => {
+      db.get('SELECT * FROM verifications WHERE random = ?', [random], (err, row) => {
+        if (err) {
+          console.error('Database error:', err);
+          reject(err);
+        } else {
+          resolve(row);
+        }
+      });
+    });
+
+    if (!row) {
+      console.error('No verification found for random:', random);
+      return res.status(400).send('Invalid');
+    }
+
+    if (row.status !== 'pending') {
+      console.error('Verification not pending:', row.status);
+      return res.status(400).send('Invalid');
+    }
+
+    console.log('Verification row:', row);
+
+    const hashedUsername = row.hashed_username;
+    const userId = row.user_id;
+
+    // Check hashed matches
+    const guild = client.guilds.cache.get(row.guild_id);
+    if (!guild) {
+      console.error('Guild not found:', row.guild_id);
+      return res.status(500).send('Guild not found');
+    }
+
+    console.log('Fetching member:', userId);
+    const member = await guild.members.fetch(userId);
+    if (!member) {
+      console.error('Member not found:', userId);
+      return res.status(400).send('User not found');
+    }
+
+    const currentHashed = crypto.createHash('sha256').update(member.user.username).digest('hex');
+    if (currentHashed !== hashedUsername) {
+      console.error('Username hash mismatch:', { current: currentHashed, stored: hashedUsername });
+      return res.status(400).send('Username changed');
+    }
+
+    console.log('Hashes match, proceeding to send embed');
+
+    // Send embed to verify channel
+    const setting = await new Promise<any>((resolve, reject) => {
+      db.get('SELECT verify_channel FROM settings WHERE guild_id = ?', [guild.id], (err, setting) => {
+        if (err) {
+          console.error('Settings database error:', err);
+          reject(err);
+        } else {
+          resolve(setting);
+        }
+      });
+    });
+
+    if (!setting?.verify_channel) {
+      console.error('No verify channel set for guild:', guild.id);
+      return res.status(500).send('Verify channel not set');
+    }
+
+    const channel = guild.channels.cache.get(setting.verify_channel);
+    if (!channel || !channel.isTextBased()) {
+      console.error('Invalid verify channel:', setting.verify_channel);
+      return res.status(500).send('Invalid verify channel');
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle('Verification Request')
+      .setDescription(`User: ${member}`)
+      .setImage(`attachment://${file.filename}`)
+      .setColor(0x00ff00);
+
+    const buttons = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`approve_${random}`)
+          .setLabel('Verify')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId(`decline_${random}`)
+          .setLabel('Decline')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+    console.log('Sending embed to channel:', channel.id);
+    await channel.send({ embeds: [embed], components: [buttons], files: [{ attachment: file.path, name: file.filename }] });
+
+    console.log('Embed sent successfully');
+    res.send('Success! You may return to Discord.');
+  } catch (error) {
+    console.error('Error in /upload:', error);
+    res.status(500).send('Internal server error');
+  }
 });
 
 app.listen(4070, () => {

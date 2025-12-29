@@ -1,0 +1,13 @@
+{
+  "name": "verification-system",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "start": "concurrently \"cd bot && npm start\" \"cd 'web server' && npm start\"",
+    "build": "cd bot && npm run build && cd ../web\\ server && npm run build",
+    "install-all": "cd bot && npm install && cd ../web\\ server && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

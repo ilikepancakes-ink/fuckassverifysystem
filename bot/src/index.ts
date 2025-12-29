@@ -71,9 +71,9 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
             .setStyle(ButtonStyle.Primary)
         );
 
-      await interaction.reply({ embeds: [embed], components: [button] });
+      await interaction.reply({ content: 'creating', ephemeral: true });
 
-      const message = await interaction.fetchReply() as Message;
+      const message = await (interaction.channel as any).send({ embeds: [embed], components: [button] });
       db.run('INSERT INTO embeds (guild_id, embed_id, title, description) VALUES (?, ?, ?, ?)',
         [interaction.guild!.id, message.id, title, description]);
     } else if (commandName === 'verifychannelset') {

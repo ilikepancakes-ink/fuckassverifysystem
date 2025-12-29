@@ -1,8 +1,5 @@
 import { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, Interaction, Message, PermissionFlagsBits } from 'discord.js';
 import express from 'express';
-import multer from 'multer';
-import * as fs from 'fs';
-import * as path from 'path';
 import * as crypto from 'crypto';
 import db from './database';
 import dotenv from 'dotenv';
@@ -140,17 +137,15 @@ client.login(TOKEN);
 
 // Express server for receiving images
 const app = express();
-const upload = multer({ dest: 'uploads/' });
 
-app.post('/upload', upload.single('image'), async (req, res) => {
+app.post('/upload', async (req, res) => {
   try {
-    console.log('Upload request received:', { random: req.body.random, file: req.file?.originalname });
+    console.log('Upload request received:', req.body);
 
-    const { random } = req.body;
-    const file = req.file;
+    const { random, image_url } = req.body;
 
-    if (!random || !file) {
-      console.error('Missing data:', { random, file });
+    if (!random || !image_url) {
+      console.error('Missing data:', { random, image_url });
       return res.status(400).send('Missing data');
     }
 
@@ -231,7 +226,7 @@ app.post('/upload', upload.single('image'), async (req, res) => {
     const embed = new EmbedBuilder()
       .setTitle('Verification Request')
       .setDescription(`User: ${member}`)
-      .setImage(`attachment://${file.filename}`)
+      .setImage(image_url)
       .setColor(0x00ff00);
 
     const buttons = new ActionRowBuilder<ButtonBuilder>()
@@ -247,7 +242,7 @@ app.post('/upload', upload.single('image'), async (req, res) => {
       );
 
     console.log('Sending embed to channel:', channel.id);
-    await channel.send({ embeds: [embed], components: [buttons], files: [{ attachment: file.path, name: file.filename }] });
+    await channel.send({ embeds: [embed], components: [buttons] });
 
     console.log('Embed sent successfully');
     res.send('Success! You may return to Discord.');

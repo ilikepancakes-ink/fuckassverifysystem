@@ -112,6 +112,8 @@ app.get('/verify/:random/:hashed', (req, res) => {
   `);
 });
 
+app.use('/uploads', express.static('uploads'));
+
 app.post('/submit', upload.single('image'), async (req, res) => {
   const { random, hashed } = req.body;
   const file = req.file;
@@ -120,10 +122,13 @@ app.post('/submit', upload.single('image'), async (req, res) => {
     return res.status(400).send('Missing data');
   }
 
+  // Create public URL for the image
+  const imageUrl = `http://verify.0x409.nl/uploads/${file.filename}`;
+
   // Send to bot
   const formData = new FormData();
   formData.append('random', random);
-  formData.append('image', require('fs').createReadStream(file.path), file.originalname);
+  formData.append('image_url', imageUrl);
 
   try {
     const response = await axios.post('http://localhost:4070/upload', formData, {

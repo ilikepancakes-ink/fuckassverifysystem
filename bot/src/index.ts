@@ -10,7 +10,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+  intents: [GatewayIntentBits.Guilds],
 });
 
 const TOKEN = process.env.TOKEN!;
@@ -36,9 +36,10 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 ];
 
-const rest = new REST({ version: '10' }).setToken(TOKEN);
+client.once(Events.ClientReady, async () => {
+  console.log(`Logged in as ${client.user!.tag}`);
 
-(async () => {
+  const rest = new REST({ version: '10' }).setToken(TOKEN);
   try {
     await rest.put(Routes.applicationCommands(client.user!.id), {
       body: commands.map(cmd => cmd.toJSON()),
@@ -47,10 +48,6 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
   } catch (error) {
     console.error(error);
   }
-})();
-
-client.once(Events.ClientReady, () => {
-  console.log(`Logged in as ${client.user!.tag}`);
 });
 
 client.on(Events.InteractionCreate, async (interaction: Interaction) => {

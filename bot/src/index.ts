@@ -136,58 +136,68 @@ client.login(TOKEN);
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
-app.post('/upload', upload.single('image'), (req, res) => {
+app.post('/upload', upload.single('image'), async (req, res) => {
   const { random } = req.body;
   const file = req.file;
 
   if (!random || !file) return res.status(400).send('Missing data');
 
-  db.get('SELECT * FROM verifications WHERE random = ?', [random], (err, row: any) => {
-    if (err || !row || row.status !== 'pending') return res.status(400).send('Invalid');
-
-    const hashedUsername = row.hashed_username;
-    const userId = row.user_id;
-
-    // Check hashed matches
-    const guild = client.guilds.cache.get(row.guild_id);
-    if (!guild) return res.status(500).send('Guild not found');
-
-    const member = guild.members.cache.get(userId);
-    if (!member) return res.status(400).send('User not found');
-
-    const currentHashed = crypto.createHash('sha256').update(member.user.username).digest('hex');
-    if (currentHashed !== hashedUsername) return res.status(400).send('Username changed');
-
-    // Send embed to verify channel
-    db.get('SELECT verify_channel FROM settings WHERE guild_id = ?', [guild.id], (err, setting: any) => {
-      if (setting?.verify_channel) {
-        const channel = guild.channels.cache.get(setting.verify_channel);
-        if (channel && channel.isTextBased()) {
-          const embed = new EmbedBuilder()
-            .setTitle('Verification Request')
-            .setDescription(`User: ${member}`)
-            .setImage(`attachment://${file.filename}`)
-            .setColor(0x00ff00);
-
-          const buttons = new ActionRowBuilder<ButtonBuilder>()
-            .addComponents(
-              new ButtonBuilder()
-                .setCustomId(`approve_${random}`)
-                .setLabel('Verify')
-                .setStyle(ButtonStyle.Success),
-              new ButtonBuilder()
-                .setCustomId(`decline_${random}`)
-                .setLabel('Decline')
-                .setStyle(ButtonStyle.Danger)
-            );
-
-          channel.send({ embeds: [embed], components: [buttons], files: [{ attachment: file.path, name: file.filename }] });
-        }
-      }
+  const row = await new Promise<any>((resolve, reject) => {
+    db.get('SELECT * FROM verifications WHERE random = ?', [random], (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
     });
-
-    res.send('Success! You may return to Discord.');
   });
+
+  if (!row || row.status !== 'pending') return res.status(400).send('Invalid');
+
+  const hashedUsername = row.hashed_username;
+  const userId = row.user_id;
+
+  // Check hashed matches
+  const guild = client.guilds.cache.get(row.guild_id);
+  if (!guild) return res.status(500).send('Guild not found');
+
+  const member = await guild.members.fetch(userId);
+  if (!member) return res.status(400).send('User not found');
+
+  const currentHashed = crypto.createHash('sha256').update(member.user.username).digest('hex');
+  if (currentHashed !== hashedUsername) return res.status(400).send('Username changed');
+
+  // Send embed to verify channel
+  const setting = await new Promise<any>((resolve, reject) => {
+    db.get('SELECT verify_channel FROM settings WHERE guild_id = ?', [guild.id], (err, setting) => {
+      if (err) reject(err);
+      else resolve(setting);
+    });
+  });
+
+  if (setting?.verify_channel) {
+    const channel = guild.channels.cache.get(setting.verify_channel);
+    if (channel && channel.isTextBased()) {
+      const embed = new EmbedBuilder()
+        .setTitle('Verification Request')
+        .setDescription(`User: ${member}`)
+        .setImage(`attachment://${file.filename}`)
+        .setColor(0x00ff00);
+
+      const buttons = new ActionRowBuilder<ButtonBuilder>()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId(`approve_${random}`)
+            .setLabel('Verify')
+            .setStyle(ButtonStyle.Success),
+          new ButtonBuilder()
+            .setCustomId(`decline_${random}`)
+            .setLabel('Decline')
+            .setStyle(ButtonStyle.Danger)
+        );
+
+      await channel.send({ embeds: [embed], components: [buttons], files: [{ attachment: file.path, name: file.filename }] });
+    }
+  }
+
+  res.send('Success! You may return to Discord.');
 });
 
 app.listen(4070, () => {

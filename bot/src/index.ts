@@ -130,6 +130,14 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
       const random = interaction.customId.split('_')[1];
       db.run('UPDATE verifications SET status = ? WHERE random = ?', ['declined', random]);
       interaction.update({ content: 'Verification declined.', components: [] });
+    } else if (interaction.customId.startsWith('show_image_')) {
+      const random = interaction.customId.split('_')[2];
+
+      db.get('SELECT image_url FROM verifications WHERE random = ?', [random], (err, row: any) => {
+        if (err || !row || !row.image_url) return;
+
+        interaction.reply({ content: `||${row.image_url}||`, ephemeral: true });
+      });
     }
   }
 });
@@ -227,7 +235,6 @@ app.post('/upload', multer().none(), async (req, res) => {
     const embed = new EmbedBuilder()
       .setTitle('Verification Request')
       .setDescription(`User: ${member}`)
-      .setImage(image_url)
       .setColor(0x00ff00);
 
     const buttons = new ActionRowBuilder<ButtonBuilder>()
@@ -239,11 +246,18 @@ app.post('/upload', multer().none(), async (req, res) => {
         new ButtonBuilder()
           .setCustomId(`decline_${random}`)
           .setLabel('Decline')
-          .setStyle(ButtonStyle.Danger)
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId(`show_image_${random}`)
+          .setLabel('Show Image')
+          .setStyle(ButtonStyle.Secondary)
       );
 
     console.log('Sending embed to channel:', channel.id);
     await channel.send({ embeds: [embed], components: [buttons] });
+
+    // Store the image_url in db
+    db.run('UPDATE verifications SET image_url = ? WHERE random = ?', [image_url, random]);
 
     console.log('Embed sent successfully');
     res.send('Success! You may return to Discord.');

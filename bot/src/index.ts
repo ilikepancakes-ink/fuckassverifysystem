@@ -80,16 +80,22 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
         [interaction.guild!.id, message.id, title, description]);
     } else if (commandName === 'verifychannelset') {
       const channel = interaction.options.getChannel('channel')!;
+      const guildId = interaction.guild!.id;
 
-      db.run('INSERT OR REPLACE INTO settings (guild_id, verify_channel) VALUES (?, ?)',
-        [interaction.guild!.id, channel.id]);
+      // Ensure row exists
+      db.run('INSERT OR IGNORE INTO settings (guild_id) VALUES (?)', [guildId]);
+      // Update the column
+      db.run('UPDATE settings SET verify_channel = ? WHERE guild_id = ?', [channel.id, guildId]);
 
       await interaction.reply({ content: `Verification channel set to ${channel}`, ephemeral: true });
     } else if (commandName === 'setverifyedrole') {
       const role = interaction.options.getRole('role')!;
+      const guildId = interaction.guild!.id;
 
-      db.run('INSERT OR REPLACE INTO settings (guild_id, verified_role) VALUES (?, ?)',
-        [interaction.guild!.id, role.id]);
+      // Ensure row exists
+      db.run('INSERT OR IGNORE INTO settings (guild_id) VALUES (?)', [guildId]);
+      // Update the column
+      db.run('UPDATE settings SET verified_role = ? WHERE guild_id = ?', [role.id, guildId]);
 
       await interaction.reply({ content: `Verified role set to ${role}`, ephemeral: true });
     }

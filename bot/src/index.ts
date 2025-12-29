@@ -198,19 +198,21 @@ app.post('/upload', upload.single('image'), async (req, res) => {
     console.log('Hashes match, proceeding to send embed');
 
     // Send embed to verify channel
+    console.log('Querying settings for guild:', guild.id);
     const setting = await new Promise<any>((resolve, reject) => {
       db.get('SELECT verify_channel FROM settings WHERE guild_id = ?', [guild.id], (err, setting) => {
         if (err) {
           console.error('Settings database error:', err);
           reject(err);
         } else {
+          console.log('Settings query result:', setting);
           resolve(setting);
         }
       });
     });
 
     if (!setting?.verify_channel) {
-      console.error('No verify channel set for guild:', guild.id);
+      console.error('No verify channel set for guild:', guild.id, 'setting:', setting);
       return res.status(500).send('Verify channel not set');
     }
 

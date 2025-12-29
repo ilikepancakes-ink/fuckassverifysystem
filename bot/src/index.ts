@@ -1,5 +1,6 @@
 import { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, Interaction, Message, PermissionFlagsBits } from 'discord.js';
 import express from 'express';
+import multer from 'multer';
 import * as crypto from 'crypto';
 import db from './database';
 import dotenv from 'dotenv';
@@ -138,7 +139,7 @@ client.login(TOKEN);
 // Express server for receiving images
 const app = express();
 
-app.post('/upload', async (req, res) => {
+app.post('/upload', multer().none(), async (req, res) => {
   try {
     console.log('Upload request received:', req.body);
 

@@ -133,10 +133,10 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
     } else if (interaction.customId.startsWith('show_image_')) {
       const random = interaction.customId.split('_')[2];
 
-      db.get('SELECT image_url FROM verifications WHERE random = ?', [random], (err, row: any) => {
-        if (err || !row || !row.image_url) return;
+      db.get('SELECT image_path, image_name FROM verifications WHERE random = ?', [random], (err, row: any) => {
+        if (err || !row || !row.image_path) return;
 
-        interaction.reply({ content: `${row.image_url}`, ephemeral: true });
+        interaction.reply({ files: [{ attachment: row.image_path, name: row.image_name }], ephemeral: true });
       });
     }
   }
@@ -147,14 +147,15 @@ client.login(TOKEN);
 // Express server for receiving images
 const app = express();
 
-app.post('/upload', multer().none(), async (req, res) => {
+app.post('/upload', multer({ dest: 'uploads/' }).single('image'), async (req, res) => {
   try {
     console.log('Upload request received:', req.body);
 
-    const { random, image_url } = req.body;
+    const { random } = req.body;
+    const file = req.file;
 
-    if (!random || !image_url) {
-      console.error('Missing data:', { random, image_url });
+    if (!random || !file) {
+      console.error('Missing data:', { random, file });
       return res.status(400).send('Missing data');
     }
 
@@ -256,8 +257,8 @@ app.post('/upload', multer().none(), async (req, res) => {
     console.log('Sending embed to channel:', channel.id);
     await channel.send({ embeds: [embed], components: [buttons] });
 
-    // Store the image_url in db
-    db.run('UPDATE verifications SET image_url = ? WHERE random = ?', [image_url, random]);
+    // Store the image_path and image_name in db
+    db.run('UPDATE verifications SET image_path = ?, image_name = ? WHERE random = ?', [file.path, file.originalname, random]);
 
     console.log('Embed sent successfully');
     res.send('Success! You may return to Discord.');

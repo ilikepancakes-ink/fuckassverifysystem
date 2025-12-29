@@ -122,13 +122,10 @@ app.post('/submit', upload.single('image'), async (req, res) => {
     return res.status(400).send('Missing data');
   }
 
-  // Create public URL for the image
-  const imageUrl = `http://verify.0x409.nl/uploads/${file.filename}`;
-
   // Send to bot
   const formData = new FormData();
   formData.append('random', random);
-  formData.append('image_url', imageUrl);
+  formData.append('image', require('fs').createReadStream(file.path), file.originalname);
 
   try {
     const response = await axios.post('http://localhost:4070/upload', formData, {

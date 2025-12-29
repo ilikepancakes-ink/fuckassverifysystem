@@ -21,7 +21,8 @@ db.serialize(() => {
     user_id TEXT,
     hashed_username TEXT,
     guild_id TEXT,
-    image_url TEXT,
+    image_path TEXT,
+    image_name TEXT,
     status TEXT DEFAULT 'pending'
   )`);
 });

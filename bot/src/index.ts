@@ -136,7 +136,7 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
       db.get('SELECT image_url FROM verifications WHERE random = ?', [random], (err, row: any) => {
         if (err || !row || !row.image_url) return;
 
-        interaction.reply({ content: `||${row.image_url}||`, ephemeral: true });
+        interaction.reply({ content: `${row.image_url}`, ephemeral: true });
       });
     }
   }

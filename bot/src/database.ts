@@ -20,6 +20,7 @@ db.serialize(() => {
     random TEXT PRIMARY KEY,
     user_id TEXT,
     hashed_username TEXT,
+    guild_id TEXT,
     status TEXT DEFAULT 'pending'
   )`);
 });

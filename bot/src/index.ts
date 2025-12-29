@@ -14,7 +14,6 @@ const client = new Client({
 });
 
 const TOKEN = process.env.TOKEN!;
-const GUILD_ID = process.env.GUILD_ID!;
 
 const commands = [
   new SlashCommandBuilder()
@@ -41,7 +40,7 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
 
 (async () => {
   try {
-    await rest.put(Routes.applicationGuildCommands(client.user!.id, GUILD_ID), {
+    await rest.put(Routes.applicationCommands(client.user!.id), {
       body: commands.map(cmd => cmd.toJSON()),
     });
     console.log('Commands registered');
@@ -102,8 +101,8 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
       const random = crypto.randomBytes(16).toString('hex');
       const hashedUsername = crypto.createHash('sha256').update(interaction.user.username).digest('hex');
 
-      db.run('INSERT INTO verifications (random, user_id, hashed_username) VALUES (?, ?, ?)',
-        [random, interaction.user.id, hashedUsername]);
+      db.run('INSERT INTO verifications (random, user_id, hashed_username, guild_id) VALUES (?, ?, ?, ?)',
+        [random, interaction.user.id, hashedUsername, interaction.guild!.id]);
 
       const link = `http://verify.0x409.nl/verify/${random}/${hashedUsername}`;
 
@@ -153,7 +152,7 @@ app.post('/upload', upload.single('image'), (req, res) => {
     const userId = row.user_id;
 
     // Check hashed matches
-    const guild = client.guilds.cache.get(GUILD_ID);
+    const guild = client.guilds.cache.get(row.guild_id);
     if (!guild) return res.status(500).send('Guild not found');
 
     const member = guild.members.cache.get(userId);

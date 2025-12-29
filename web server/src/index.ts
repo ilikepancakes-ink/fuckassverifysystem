@@ -33,7 +33,7 @@ app.get('/verify/:random/:hashed', (req, res) => {
         <form action="/submit" method="post" enctype="multipart/form-data">
           <input type="hidden" name="random" value="${random}">
           <input type="hidden" name="hashed" value="${hashed}">
-          <input type="file" name="image" accept="image/*" required>
+          <input type="file" name="image" accept="image/*,video/*" required>
           <br><br>
           <button type="submit">Confirm</button>
         </form>
